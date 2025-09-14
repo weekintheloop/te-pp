@@ -409,7 +409,6 @@ class SIGTEFrontendTester:
                 ('generateRoutes(', 'Generate routes'),
                 ('generateBuses(', 'Generate buses'),
                 ('generateMonitors(', 'Generate monitors'),
-                ('generateTasks(', 'Generate tasks'),
                 ('firstNames', 'First names array'),
                 ('lastNames', 'Last names array'),
                 ('schools', 'Schools array'),
