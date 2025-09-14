@@ -150,9 +150,9 @@ class SIGTEFrontendTester:
                 ('class="theme-toggle"', 'Theme toggle button'),
                 ('class="sidebar-toggle"', 'Sidebar toggle button'),
                 ('<main class="main-content"', 'Main content area'),
-                ('class="modal"', 'Modal component'),
-                ('class="loading-overlay"', 'Loading overlay'),
-                ('class="notification"', 'Notification component'),
+                ('id="modal"', 'Modal component'),
+                ('id="loading-overlay"', 'Loading overlay'),
+                ('id="notification"', 'Notification component'),
                 ('id="page-content"', 'Dynamic page content area')
             ]
             
