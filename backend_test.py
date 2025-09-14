@@ -338,35 +338,43 @@ class SIGTEBackendTester:
         """Test integration readiness for Google Apps Script"""
         print("🔗 Checking integration readiness...")
         
-        # Check for proper Google Apps Script patterns
-        try:
-            with open('/app/Code.gs', 'r') as f:
-                code_content = f.read()
-            
-            integration_checks = [
-                ('SpreadsheetApp', 'Google Sheets integration'),
-                ('Session.getActiveUser()', 'User session handling'),
-                ('HtmlService', 'HTML service usage'),
-                ('PropertiesService', 'Properties service for configuration'),
-                ('UrlFetchApp', 'External API calls'),
-                ('CacheService', 'Caching service')
-            ]
-            
-            missing_integrations = []
-            for check_pattern, check_name in integration_checks:
-                if check_pattern not in code_content:
-                    missing_integrations.append(check_name)
-            
-            if missing_integrations:
-                print(f"❌ Missing integrations: {', '.join(missing_integrations)}")
-                return False
-            
-            print("✅ Integration readiness is complete")
-            return True
-            
-        except FileNotFoundError:
-            print("❌ Code.gs file not found")
+        # Check for proper Google Apps Script patterns across all .gs files
+        gs_files = [
+            '/app/Code.gs',
+            '/app/DataManager.gs', 
+            '/app/GeminiService.gs',
+            '/app/GoogleMapsService.gs',
+            '/app/AuthService.gs'
+        ]
+        
+        all_content = ""
+        for file_path in gs_files:
+            try:
+                with open(file_path, 'r') as f:
+                    all_content += f.read() + "\n"
+            except FileNotFoundError:
+                continue
+        
+        integration_checks = [
+            ('SpreadsheetApp', 'Google Sheets integration'),
+            ('Session.getActiveUser()', 'User session handling'),
+            ('HtmlService', 'HTML service usage'),
+            ('PropertiesService', 'Properties service for configuration'),
+            ('UrlFetchApp', 'External API calls'),
+            ('CacheService', 'Caching service')
+        ]
+        
+        missing_integrations = []
+        for check_pattern, check_name in integration_checks:
+            if check_pattern not in all_content:
+                missing_integrations.append(check_name)
+        
+        if missing_integrations:
+            print(f"❌ Missing integrations: {', '.join(missing_integrations)}")
             return False
+        
+        print("✅ Integration readiness is complete")
+        return True
     
     def run_all_tests(self):
         """Run all backend tests"""
