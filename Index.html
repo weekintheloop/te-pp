@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIG-TE - Sistema Integrado de Gestão de Transporte Escolar</title>
+    <?!= include('Css'); ?>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>SIG-TE</h1>
+                    <span>Sistema Integrado de Gestão de Transporte Escolar</span>
+                </div>
+                <div class="user-info">
+                    <span id="user-email">Carregando...</span>
+                    <button id="logout-btn" class="btn btn-secondary">Sair</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button id="sidebar-toggle" class="sidebar-toggle">☰</button>
+                <span class="sidebar-title">Menu</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#/dashboard" class="nav-link active" data-route="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a></li>
+                <li><a href="#/alunos" class="nav-link" data-route="alunos">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Alunos</span>
+                </a></li>
+                <li><a href="#/rotas" class="nav-link" data-route="rotas">
+                    <span class="nav-icon">🗺️</span>
+                    <span class="nav-text">Rotas</span>
+                </a></li>
+                <li><a href="#/onibus" class="nav-link" data-route="onibus">
+                    <span class="nav-icon">🚌</span>
+                    <span class="nav-text">Ônibus</span>
+                </a></li>
+                <li><a href="#/monitores" class="nav-link" data-route="monitores">
+                    <span class="nav-icon">👨‍🏫</span>
+                    <span class="nav-text">Monitores</span>
+                </a></li>
+                <li><a href="#/kanban" class="nav-link" data-route="kanban">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Kanban</span>
+                </a></li>
+                <li><a href="#/relatorios" class="nav-link" data-route="relatorios">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Relatórios</span>
+                </a></li>
+                <li><a href="#/slides" class="nav-link" data-route="slides">
+                    <span class="nav-icon">🎯</span>
+                    <span class="nav-text">Slides IA</span>
+                </a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="main-content">
+            <div class="content-wrapper">
+                <div id="page-content">
+                    <!-- Dynamic content will be loaded here -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Carregando...</p>
+            </div>
+        </div>
+
+        <!-- Modal -->
+        <div id="modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-title">Título</h3>
+                    <button id="modal-close" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body" id="modal-body">
+                    <!-- Modal content -->
+                </div>
+                <div class="modal-footer" id="modal-footer">
+                    <!-- Modal buttons -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification -->
+        <div id="notification" class="notification hidden">
+            <div class="notification-content">
+                <span id="notification-message"></span>
+                <button id="notification-close" class="notification-close">&times;</button>
+            </div>
+        </div>
+    </div>
+
+    <?!= include('JavaScript'); ?>
+</body>
+</html>
+
