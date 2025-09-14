@@ -1,2 +1,1636 @@
-<!-- Conteúdo para JavaScript.html será adicionado na próxima fase. -->
+<script>
+// SIG-TE - Sistema Integrado de Gestão de Transporte Escolar
+// Main Application JavaScript
 
+class SIGTEApp {
+    constructor() {
+        this.currentRoute = 'dashboard';
+        this.user = null;
+        this.theme = localStorage.getItem('sigte-theme') || 'light';
+        this.sidebarCollapsed = localStorage.getItem('sigte-sidebar-collapsed') === 'true';
+        this.mockData = new MockDataGenerator();
+        
+        this.init();
+    }
+    
+    async init() {
+        this.setupTheme();
+        this.setupEventListeners();
+        this.setupSidebar();
+        await this.loadUser();
+        this.setupRouter();
+        this.navigateTo(window.location.hash.slice(2) || 'dashboard');
+    }
+    
+    setupTheme() {
+        document.documentElement.setAttribute('data-theme', this.theme);
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            themeToggle.innerHTML = this.theme === 'dark' ? '☀️' : '🌙';
+        }
+    }
+    
+    toggleTheme() {
+        this.theme = this.theme === 'light' ? 'dark' : 'light';
+        localStorage.setItem('sigte-theme', this.theme);
+        this.setupTheme();
+        this.showNotification('success', 'Tema alterado!', `Tema ${this.theme === 'dark' ? 'escuro' : 'claro'} ativado.`);
+    }
+    
+    setupSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        
+        if (this.sidebarCollapsed) {
+            sidebar?.classList.add('collapsed');
+        }
+    }
+    
+    toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        this.sidebarCollapsed = !this.sidebarCollapsed;
+        
+        if (this.sidebarCollapsed) {
+            sidebar?.classList.add('collapsed');
+        } else {
+            sidebar?.classList.remove('collapsed');
+        }
+        
+        localStorage.setItem('sigte-sidebar-collapsed', this.sidebarCollapsed.toString());
+    }
+    
+    setupEventListeners() {
+        // Theme toggle
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'theme-toggle' || e.target.closest('#theme-toggle')) {
+                this.toggleTheme();
+            }
+            
+            if (e.target.id === 'sidebar-toggle' || e.target.closest('#sidebar-toggle')) {
+                this.toggleSidebar();
+            }
+            
+            if (e.target.id === 'logout-btn' || e.target.closest('#logout-btn')) {
+                this.logout();
+            }
+            
+            if (e.target.id === 'modal-close' || e.target.closest('#modal-close') || e.target.classList.contains('modal') && e.target === e.target) {
+                this.closeModal();
+            }
+            
+            if (e.target.id === 'notification-close' || e.target.closest('#notification-close')) {
+                this.hideNotification();
+            }
+        });
+        
+        // Navigation
+        document.addEventListener('click', (e) => {
+            const navLink = e.target.closest('.nav-link');
+            if (navLink) {
+                e.preventDefault();
+                const route = navLink.getAttribute('data-route');
+                if (route) {
+                    this.navigateTo(route);
+                }
+            }
+        });
+        
+        // Responsive sidebar
+        if (window.innerWidth <= 768) {
+            document.addEventListener('click', (e) => {
+                const sidebar = document.getElementById('sidebar');
+                if (!sidebar?.contains(e.target) && !e.target.closest('#sidebar-toggle')) {
+                    sidebar?.classList.remove('open');
+                }
+            });
+        }
+    }
+    
+    setupRouter() {
+        window.addEventListener('hashchange', () => {
+            const route = window.location.hash.slice(2) || 'dashboard';
+            this.navigateTo(route);
+        });
+    }
+    
+    async loadUser() {
+        try {
+            this.showLoading(true);
+            // Try to get user info from Google Apps Script
+            // For now, use mock data
+            this.user = {
+                email: 'admin@escola.com.br',
+                name: 'Administrador',
+                roles: ['Secretário']
+            };
+            
+            document.getElementById('user-email').textContent = this.user.email;
+        } catch (error) {
+            console.error('Error loading user:', error);
+            this.user = {
+                email: 'admin@escola.com.br',
+                name: 'Administrador',
+                roles: ['Secretário']
+            };
+            document.getElementById('user-email').textContent = this.user.email;
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    async navigateTo(route) {
+        if (this.currentRoute === route) return;
+        
+        // Update navigation
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
+        
+        const activeLink = document.querySelector(`[data-route="${route}"]`);
+        if (activeLink) {
+            activeLink.classList.add('active');
+        }
+        
+        this.currentRoute = route;
+        window.location.hash = `#/${route}`;
+        
+        // Load route content
+        await this.loadRouteContent(route);
+    }
+    
+    async loadRouteContent(route) {
+        const pageContent = document.getElementById('page-content');
+        if (!pageContent) return;
+        
+        this.showLoading(true);
+        
+        try {
+            let content = '';
+            
+            switch (route) {
+                case 'dashboard':
+                    content = await this.renderDashboard();
+                    break;
+                case 'alunos':
+                    content = await this.renderAlunos();
+                    break;
+                case 'rotas':
+                    content = await this.renderRotas();
+                    break;
+                case 'onibus':
+                    content = await this.renderOnibus();
+                    break;
+                case 'monitores':
+                    content = await this.renderMonitores();
+                    break;
+                case 'kanban':
+                    content = await this.renderKanban();
+                    break;
+                case 'relatorios':
+                    content = await this.renderRelatorios();
+                    break;
+                case 'slides':
+                    content = await this.renderSlides();
+                    break;
+                default:
+                    content = '<div class="text-center p-4"><h2>Página não encontrada</h2></div>';
+            }
+            
+            pageContent.innerHTML = content;
+            
+            // Setup route-specific functionality
+            this.setupRouteEvents(route);
+            
+        } catch (error) {
+            console.error('Error loading route content:', error);
+            pageContent.innerHTML = '<div class="text-center p-4"><h2>Erro ao carregar página</h2></div>';
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    async renderDashboard() {
+        const stats = {
+            totalAlunos: 234,
+            totalRotas: 12,
+            totalOnibus: 8,
+            totalMonitores: 15,
+            alunosAtivos: 229,
+            rotasAtivas: 11,
+            onibusAtivos: 7,
+            monitoresAtivos: 14
+        };
+        
+        return `
+            <div class="page-header">
+                <h1 class="page-title">Dashboard</h1>
+                <p class="page-subtitle">Visão geral do sistema de transporte escolar</p>
+            </div>
+            
+            <div class="grid grid-cols-4 mb-6">
+                <div class="stats-card">
+                    <div class="stats-value">${stats.totalAlunos}</div>
+                    <div class="stats-label">Total de Alunos</div>
+                    <div class="stats-change positive">↗ ${stats.alunosAtivos} ativos</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-value">${stats.totalRotas}</div>
+                    <div class="stats-label">Rotas Cadastradas</div>
+                    <div class="stats-change positive">↗ ${stats.rotasAtivas} ativas</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-value">${stats.totalOnibus}</div>
+                    <div class="stats-label">Frota de Ônibus</div>
+                    <div class="stats-change positive">↗ ${stats.onibusAtivos} operacionais</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-value">${stats.totalMonitores}</div>
+                    <div class="stats-label">Monitores</div>
+                    <div class="stats-change positive">↗ ${stats.monitoresAtivos} ativos</div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 mb-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Frequência Semanal</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            📊 Gráfico de Frequência
+                            <br><small>Integração com bibliotecas de gráfico em desenvolvimento</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Rotas Mais Utilizadas</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            🗺️ Gráfico de Rotas
+                            <br><small>Integração com Google Maps em desenvolvimento</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Alertas Recentes</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="space-y-3">
+                            <div class="flex items-center gap-3 p-3 bg-warning rounded">
+                                <span>⚠️</span>
+                                <div>
+                                    <div class="font-semibold">Manutenção Preventiva</div>
+                                    <div class="text-sm text-secondary">Ônibus BRA-1234 - Vencimento em 5 dias</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 p-3 bg-info rounded">
+                                <span>ℹ️</span>
+                                <div>
+                                    <div class="font-semibold">Nova Rota Criada</div>
+                                    <div class="text-sm text-secondary">Rota Centro-Escola Municipal</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Ações Rápidas</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="btn btn-primary" onclick="app.navigateTo('alunos')">
+                                👥 Gerenciar Alunos
+                            </button>
+                            <button class="btn btn-primary" onclick="app.navigateTo('rotas')">
+                                🗺️ Ver Rotas
+                            </button>
+                            <button class="btn btn-secondary" onclick="app.navigateTo('relatorios')">
+                                📈 Relatórios
+                            </button>
+                            <button class="btn btn-secondary" onclick="app.navigateTo('kanban')">
+                                📋 Kanban
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async renderAlunos() {
+        const alunos = this.mockData.generateStudents(20);
+        
+        return `
+            <div class="page-header">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="page-title">Alunos</h1>
+                        <p class="page-subtitle">Gerenciamento de estudantes</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="app.showStudentModal()">
+                        ➕ Novo Aluno
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card mb-6">
+                <div class="card-body">
+                    <div class="flex gap-4 items-center">
+                        <div class="search-box">
+                            <input type="text" class="form-input search-input" placeholder="Buscar alunos...">
+                            <span class="search-icon">🔍</span>
+                        </div>
+                        <select class="form-select" style="min-width: 150px;">
+                            <option value="">Todas as escolas</option>
+                            <option value="escola1">Escola Municipal A</option>
+                            <option value="escola2">Escola Municipal B</option>
+                        </select>
+                        <select class="form-select" style="min-width: 120px;">
+                            <option value="">Todos os turnos</option>
+                            <option value="manha">Manhã</option>
+                            <option value="tarde">Tarde</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Escola</th>
+                            <th>Turno</th>
+                            <th>Rota</th>
+                            <th>Ponto de Parada</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${alunos.map(aluno => `
+                            <tr>
+                                <td class="font-semibold">${aluno.nome}</td>
+                                <td>${aluno.escola}</td>
+                                <td>${aluno.turno}</td>
+                                <td>${aluno.rota}</td>
+                                <td>${aluno.pontoDeParada}</td>
+                                <td>
+                                    <span class="kanban-card-priority ${aluno.ativo ? 'low' : 'high'}">
+                                        ${aluno.ativo ? 'Ativo' : 'Inativo'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="flex gap-2">
+                                        <button class="btn btn-sm btn-outline" onclick="app.editStudent(${aluno.id})">
+                                            ✏️
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="app.deleteStudent(${aluno.id})">
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    async renderRotas() {
+        const rotas = this.mockData.generateRoutes(12);
+        
+        return `
+            <div class="page-header">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="page-title">Rotas</h1>
+                        <p class="page-subtitle">Gerenciamento de rotas de transporte</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="app.showRouteModal()">
+                        ➕ Nova Rota
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-3 mb-6">
+                <div class="stats-card">
+                    <div class="stats-value">${rotas.length}</div>
+                    <div class="stats-label">Total de Rotas</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-value">${rotas.filter(r => r.ativo).length}</div>
+                    <div class="stats-label">Rotas Ativas</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-value">847km</div>
+                    <div class="stats-label">Distância Total</div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-6">
+                ${rotas.map(rota => `
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="flex justify-between items-center">
+                                <h3 class="card-title">${rota.nome}</h3>
+                                <span class="kanban-card-priority ${rota.ativo ? 'low' : 'high'}">
+                                    ${rota.ativo ? 'Ativa' : 'Inativa'}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="space-y-2 mb-4">
+                                <div><strong>Ônibus:</strong> ${rota.onibus}</div>
+                                <div><strong>Monitor:</strong> ${rota.monitor}</div>
+                                <div><strong>Horário:</strong> ${rota.horarioPartida} - ${rota.horarioChegada}</div>
+                                <div><strong>Alunos:</strong> ${Math.floor(Math.random() * 30) + 10}</div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button class="btn btn-sm btn-primary" onclick="app.viewRoute(${rota.id})">
+                                    🗺️ Ver no Mapa
+                                </button>
+                                <button class="btn btn-sm btn-outline" onclick="app.editRoute(${rota.id})">
+                                    ✏️ Editar
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="app.deleteRoute(${rota.id})">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    async renderOnibus() {
+        const onibus = this.mockData.generateBuses(8);
+        
+        return `
+            <div class="page-header">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="page-title">Frota de Ônibus</h1>
+                        <p class="page-subtitle">Gerenciamento da frota escolar</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="app.showBusModal()">
+                        ➕ Novo Ônibus
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-4 mb-6">
+                <div class="stats-card">
+                    <div class="stats-value">${onibus.length}</div>
+                    <div class="stats-label">Total da Frota</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-value">${onibus.filter(o => o.ativo).length}</div>
+                    <div class="stats-label">Em Operação</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-value">${onibus.reduce((sum, o) => sum + o.capacidade, 0)}</div>
+                    <div class="stats-label">Capacidade Total</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-value">${(onibus.reduce((sum, o) => sum + o.ano, 0) / onibus.length).toFixed(0)}</div>
+                    <div class="stats-label">Ano Médio</div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Placa</th>
+                            <th>Modelo</th>
+                            <th>Ano</th>
+                            <th>Capacidade</th>
+                            <th>Rota Atual</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${onibus.map(bus => `
+                            <tr>
+                                <td class="font-semibold">${bus.placa}</td>
+                                <td>${bus.modelo}</td>
+                                <td>${bus.ano}</td>
+                                <td>${bus.capacidade} lugares</td>
+                                <td>${bus.rotaAtual || 'Não atribuída'}</td>
+                                <td>
+                                    <span class="kanban-card-priority ${bus.ativo ? 'low' : 'high'}">
+                                        ${bus.ativo ? 'Operacional' : 'Manutenção'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="flex gap-2">
+                                        <button class="btn btn-sm btn-outline" onclick="app.editBus(${bus.id})">
+                                            ✏️
+                                        </button>
+                                        <button class="btn btn-sm btn-info" onclick="app.viewBusHistory(${bus.id})">
+                                            📋
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="app.deleteBus(${bus.id})">
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    async renderMonitores() {
+        const monitores = this.mockData.generateMonitors(15);
+        
+        return `
+            <div class="page-header">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="page-title">Monitores</h1>
+                        <p class="page-subtitle">Gerenciamento de monitores escolares</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="app.showMonitorModal()">
+                        ➕ Novo Monitor
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-3 mb-6">
+                <div class="stats-card">
+                    <div class="stats-value">${monitores.length}</div>
+                    <div class="stats-label">Total de Monitores</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-value">${monitores.filter(m => m.ativo).length}</div>
+                    <div class="stats-label">Ativos</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-value">${monitores.filter(m => m.rotaAtual).length}</div>
+                    <div class="stats-label">Em Rotas</div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Telefone</th>
+                            <th>Rota Atual</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${monitores.map(monitor => `
+                            <tr>
+                                <td class="font-semibold">${monitor.nome}</td>
+                                <td>${monitor.email}</td>
+                                <td>${monitor.telefone}</td>
+                                <td>${monitor.rotaAtual || 'Não atribuída'}</td>
+                                <td>
+                                    <span class="kanban-card-priority ${monitor.ativo ? 'low' : 'high'}">
+                                        ${monitor.ativo ? 'Ativo' : 'Inativo'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="flex gap-2">
+                                        <button class="btn btn-sm btn-outline" onclick="app.editMonitor(${monitor.id})">
+                                            ✏️
+                                        </button>
+                                        <button class="btn btn-sm btn-info" onclick="app.viewMonitorPerformance(${monitor.id})">
+                                            📊
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="app.deleteMonitor(${monitor.id})">
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    async renderKanban() {
+        const tasks = this.mockData.generateKanbanTasks();
+        
+        return `
+            <div class="page-header">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="page-title">Kanban</h1>
+                        <p class="page-subtitle">Gerenciamento de tarefas e atividades</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="app.showTaskModal()">
+                        ➕ Nova Tarefa
+                    </button>
+                </div>
+            </div>
+            
+            <div class="kanban-board">
+                <div class="kanban-column">
+                    <div class="kanban-header">
+                        📋 A Fazer (${tasks.todo.length})
+                    </div>
+                    <div class="kanban-cards" data-status="todo">
+                        ${tasks.todo.map(task => this.renderKanbanCard(task)).join('')}
+                    </div>
+                </div>
+                
+                <div class="kanban-column">
+                    <div class="kanban-header">
+                        🔄 Em Progresso (${tasks.inProgress.length})
+                    </div>
+                    <div class="kanban-cards" data-status="inProgress">
+                        ${tasks.inProgress.map(task => this.renderKanbanCard(task)).join('')}
+                    </div>
+                </div>
+                
+                <div class="kanban-column">
+                    <div class="kanban-header">
+                        ✅ Concluído (${tasks.done.length})
+                    </div>
+                    <div class="kanban-cards" data-status="done">
+                        ${tasks.done.map(task => this.renderKanbanCard(task)).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    renderKanbanCard(task) {
+        return `
+            <div class="kanban-card" draggable="true" data-task-id="${task.id}">
+                <div class="kanban-card-title">${task.title}</div>
+                <div class="kanban-card-description">${task.description}</div>
+                <div class="kanban-card-meta">
+                    <span class="kanban-card-priority ${task.priority}">${task.priority}</span>
+                    <span>${task.assignee}</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    async renderRelatorios() {
+        return `
+            <div class="page-header">
+                <h1 class="page-title">Relatórios</h1>
+                <p class="page-subtitle">Análises e relatórios do sistema</p>
+            </div>
+            
+            <div class="grid grid-cols-2 mb-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Relatórios Disponíveis</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="space-y-3">
+                            <button class="btn btn-outline w-full text-left" onclick="app.generateReport('frequency')">
+                                📊 Relatório de Frequência
+                            </button>
+                            <button class="btn btn-outline w-full text-left" onclick="app.generateReport('routes')">
+                                🗺️ Análise de Rotas
+                            </button>
+                            <button class="btn btn-outline w-full text-left" onclick="app.generateReport('maintenance')">
+                                🔧 Relatório de Manutenção
+                            </button>
+                            <button class="btn btn-outline w-full text-left" onclick="app.generateReport('performance')">
+                                📈 Relatório de Performance
+                            </button>
+                            <button class="btn btn-primary w-full text-left" onclick="app.generateAIReport()">
+                                🤖 Relatório com IA (Gemini)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Relatório Rápido</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="quick-report">
+                            <div class="chart-container">
+                                📈 Clique em "Relatório com IA" para gerar análise personalizada
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Histórico de Relatórios</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Data de Geração</th>
+                                    <th>Usuário</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Relatório de Frequência</td>
+                                    <td>15/09/2024 14:30</td>
+                                    <td>admin@escola.com.br</td>
+                                    <td><span class="kanban-card-priority low">Concluído</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline">📥 Download</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Análise de Rotas</td>
+                                    <td>14/09/2024 09:15</td>
+                                    <td>admin@escola.com.br</td>
+                                    <td><span class="kanban-card-priority low">Concluído</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline">📥 Download</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async renderSlides() {
+        return `
+            <div class="page-header">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="page-title">Slides com IA</h1>
+                        <p class="page-subtitle">Apresentações geradas automaticamente</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="app.generateSlides()">
+                        🎯 Gerar Apresentação
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-3 mb-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Dashboard Executivo</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-secondary mb-4">Apresentação com métricas e KPIs principais do sistema.</p>
+                        <button class="btn btn-primary" onclick="app.generateSlides('executive')">
+                            🎯 Gerar Slides
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Relatório Operacional</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-secondary mb-4">Apresentação focada em operações e eficiência das rotas.</p>
+                        <button class="btn btn-primary" onclick="app.generateSlides('operational')">
+                            🎯 Gerar Slides
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Análise de Performance</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-secondary mb-4">Apresentação com análise detalhada de performance.</p>
+                        <button class="btn btn-primary" onclick="app.generateSlides('performance')">
+                            🎯 Gerar Slides
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Apresentações Recentes</h3>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 border rounded">
+                            <h4 class="font-semibold mb-2">Dashboard Executivo - Setembro 2024</h4>
+                            <p class="text-secondary text-sm mb-3">Gerado em 14/09/2024 às 10:30</p>
+                            <div class="flex gap-2">
+                                <button class="btn btn-sm btn-outline">👁️ Visualizar</button>
+                                <button class="btn btn-sm btn-primary">📥 Download</button>
+                            </div>
+                        </div>
+                        <div class="p-4 border rounded">
+                            <h4 class="font-semibold mb-2">Relatório Operacional - Agosto 2024</h4>
+                            <p class="text-secondary text-sm mb-3">Gerado em 30/08/2024 às 15:45</p>
+                            <div class="flex gap-2">
+                                <button class="btn btn-sm btn-outline">👁️ Visualizar</button>
+                                <button class="btn btn-sm btn-primary">📥 Download</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    setupRouteEvents(route) {
+        switch (route) {
+            case 'kanban':
+                this.setupKanbanDragAndDrop();
+                break;
+        }
+    }
+    
+    setupKanbanDragAndDrop() {
+        const cards = document.querySelectorAll('.kanban-card');
+        const columns = document.querySelectorAll('.kanban-cards');
+        
+        cards.forEach(card => {
+            card.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', e.target.dataset.taskId);
+                e.target.classList.add('dragging');
+            });
+            
+            card.addEventListener('dragend', (e) => {
+                e.target.classList.remove('dragging');
+            });
+        });
+        
+        columns.forEach(column => {
+            column.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+            
+            column.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const taskId = e.dataTransfer.getData('text/plain');
+                const newStatus = e.target.dataset.status;
+                const card = document.querySelector(`[data-task-id="${taskId}"]`);
+                
+                if (card && e.target.classList.contains('kanban-cards')) {
+                    e.target.appendChild(card);
+                    this.updateTaskStatus(taskId, newStatus);
+                }
+            });
+        });
+    }
+    
+    // Modal functions
+    showModal(title, content, footer = '') {
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalFooter = document.getElementById('modal-footer');
+        
+        modalTitle.textContent = title;
+        modalBody.innerHTML = content;
+        modalFooter.innerHTML = footer;
+        
+        modal.classList.remove('hidden');
+    }
+    
+    closeModal() {
+        const modal = document.getElementById('modal');
+        modal.classList.add('hidden');
+    }
+    
+    // Entity modal functions
+    showStudentModal(student = null) {
+        const isEdit = student !== null;
+        const title = isEdit ? 'Editar Aluno' : 'Novo Aluno';
+        
+        const content = `
+            <form id="student-form">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="form-group">
+                        <label class="form-label">Nome</label>
+                        <input type="text" class="form-input" name="nome" value="${student?.nome || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">CPF</label>
+                        <input type="text" class="form-input" name="cpf" value="${student?.cpf || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data de Nascimento</label>
+                        <input type="date" class="form-input" name="dataNascimento" value="${student?.dataNascimento || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Escola</label>
+                        <select class="form-select" name="escola" required>
+                            <option value="">Selecione...</option>
+                            <option value="Escola Municipal A" ${student?.escola === 'Escola Municipal A' ? 'selected' : ''}>Escola Municipal A</option>
+                            <option value="Escola Municipal B" ${student?.escola === 'Escola Municipal B' ? 'selected' : ''}>Escola Municipal B</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Turno</label>
+                        <select class="form-select" name="turno" required>
+                            <option value="">Selecione...</option>
+                            <option value="Manhã" ${student?.turno === 'Manhã' ? 'selected' : ''}>Manhã</option>
+                            <option value="Tarde" ${student?.turno === 'Tarde' ? 'selected' : ''}>Tarde</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Telefone</label>
+                        <input type="tel" class="form-input" name="telefone" value="${student?.telefone || ''}" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Endereço</label>
+                    <input type="text" class="form-input" name="endereco" value="${student?.endereco || ''}" required>
+                </div>
+            </form>
+        `;
+        
+        const footer = `
+            <button type="button" class="btn btn-secondary" onclick="app.closeModal()">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="app.saveStudent(${isEdit ? student.id : 'null'})">
+                ${isEdit ? 'Atualizar' : 'Salvar'}
+            </button>
+        `;
+        
+        this.showModal(title, content, footer);
+    }
+    
+    showRouteModal(route = null) {
+        const isEdit = route !== null;
+        const title = isEdit ? 'Editar Rota' : 'Nova Rota';
+        
+        const content = `
+            <form id="route-form">
+                <div class="form-group">
+                    <label class="form-label">Nome da Rota</label>
+                    <input type="text" class="form-input" name="nome" value="${route?.nome || ''}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Descrição</label>
+                    <textarea class="form-textarea" name="descricao" rows="3">${route?.descricao || ''}</textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="form-group">
+                        <label class="form-label">Horário de Partida</label>
+                        <input type="time" class="form-input" name="horarioPartida" value="${route?.horarioPartida || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Horário de Chegada</label>
+                        <input type="time" class="form-input" name="horarioChegada" value="${route?.horarioChegada || ''}" required>
+                    </div>
+                </div>
+            </form>
+        `;
+        
+        const footer = `
+            <button type="button" class="btn btn-secondary" onclick="app.closeModal()">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="app.saveRoute(${isEdit ? route.id : 'null'})">
+                ${isEdit ? 'Atualizar' : 'Salvar'}
+            </button>
+        `;
+        
+        this.showModal(title, content, footer);
+    }
+    
+    showBusModal(bus = null) {
+        const isEdit = bus !== null;
+        const title = isEdit ? 'Editar Ônibus' : 'Novo Ônibus';
+        
+        const content = `
+            <form id="bus-form">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="form-group">
+                        <label class="form-label">Placa</label>
+                        <input type="text" class="form-input" name="placa" value="${bus?.placa || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Modelo</label>
+                        <input type="text" class="form-input" name="modelo" value="${bus?.modelo || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ano</label>
+                        <input type="number" class="form-input" name="ano" value="${bus?.ano || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Capacidade</label>
+                        <input type="number" class="form-input" name="capacidade" value="${bus?.capacidade || ''}" required>
+                    </div>
+                </div>
+            </form>
+        `;
+        
+        const footer = `
+            <button type="button" class="btn btn-secondary" onclick="app.closeModal()">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="app.saveBus(${isEdit ? bus.id : 'null'})">
+                ${isEdit ? 'Atualizar' : 'Salvar'}
+            </button>
+        `;
+        
+        this.showModal(title, content, footer);
+    }
+    
+    showMonitorModal(monitor = null) {
+        const isEdit = monitor !== null;
+        const title = isEdit ? 'Editar Monitor' : 'Novo Monitor';
+        
+        const content = `
+            <form id="monitor-form">
+                <div class="form-group">
+                    <label class="form-label">Nome</label>
+                    <input type="text" class="form-input" name="nome" value="${monitor?.nome || ''}" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" name="email" value="${monitor?.email || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Telefone</label>
+                        <input type="tel" class="form-input" name="telefone" value="${monitor?.telefone || ''}" required>
+                    </div>
+                </div>
+            </form>
+        `;
+        
+        const footer = `
+            <button type="button" class="btn btn-secondary" onclick="app.closeModal()">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="app.saveMonitor(${isEdit ? monitor.id : 'null'})">
+                ${isEdit ? 'Atualizar' : 'Salvar'}
+            </button>
+        `;
+        
+        this.showModal(title, content, footer);
+    }
+    
+    showTaskModal(task = null) {
+        const isEdit = task !== null;
+        const title = isEdit ? 'Editar Tarefa' : 'Nova Tarefa';
+        
+        const content = `
+            <form id="task-form">
+                <div class="form-group">
+                    <label class="form-label">Título</label>
+                    <input type="text" class="form-input" name="title" value="${task?.title || ''}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Descrição</label>
+                    <textarea class="form-textarea" name="description" rows="3">${task?.description || ''}</textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="form-group">
+                        <label class="form-label">Prioridade</label>
+                        <select class="form-select" name="priority" required>
+                            <option value="low" ${task?.priority === 'low' ? 'selected' : ''}>Baixa</option>
+                            <option value="medium" ${task?.priority === 'medium' ? 'selected' : ''}>Média</option>
+                            <option value="high" ${task?.priority === 'high' ? 'selected' : ''}>Alta</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Responsável</label>
+                        <input type="text" class="form-input" name="assignee" value="${task?.assignee || ''}" required>
+                    </div>
+                </div>
+            </form>
+        `;
+        
+        const footer = `
+            <button type="button" class="btn btn-secondary" onclick="app.closeModal()">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="app.saveTask(${isEdit ? task.id : 'null'})">
+                ${isEdit ? 'Atualizar' : 'Salvar'}
+            </button>
+        `;
+        
+        this.showModal(title, content, footer);
+    }
+    
+    // Save functions
+    async saveStudent(id) {
+        const form = document.getElementById('student-form');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+        
+        try {
+            this.showLoading(true);
+            
+            // Simulate API call
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            this.closeModal();
+            this.showNotification('success', 'Sucesso!', `Aluno ${id ? 'atualizado' : 'cadastrado'} com sucesso.`);
+            
+            // Refresh the current view if we're on the students page
+            if (this.currentRoute === 'alunos') {
+                await this.loadRouteContent('alunos');
+            }
+        } catch (error) {
+            this.showNotification('error', 'Erro!', 'Erro ao salvar aluno.');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    async saveRoute(id) {
+        const form = document.getElementById('route-form');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+        
+        try {
+            this.showLoading(true);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            this.closeModal();
+            this.showNotification('success', 'Sucesso!', `Rota ${id ? 'atualizada' : 'cadastrada'} com sucesso.`);
+            
+            if (this.currentRoute === 'rotas') {
+                await this.loadRouteContent('rotas');
+            }
+        } catch (error) {
+            this.showNotification('error', 'Erro!', 'Erro ao salvar rota.');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    async saveBus(id) {
+        const form = document.getElementById('bus-form');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+        
+        try {
+            this.showLoading(true);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            this.closeModal();
+            this.showNotification('success', 'Sucesso!', `Ônibus ${id ? 'atualizado' : 'cadastrado'} com sucesso.`);
+            
+            if (this.currentRoute === 'onibus') {
+                await this.loadRouteContent('onibus');
+            }
+        } catch (error) {
+            this.showNotification('error', 'Erro!', 'Erro ao salvar ônibus.');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    async saveMonitor(id) {
+        const form = document.getElementById('monitor-form');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+        
+        try {
+            this.showLoading(true);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            this.closeModal();
+            this.showNotification('success', 'Sucesso!', `Monitor ${id ? 'atualizado' : 'cadastrado'} com sucesso.`);
+            
+            if (this.currentRoute === 'monitores') {
+                await this.loadRouteContent('monitores');
+            }
+        } catch (error) {
+            this.showNotification('error', 'Erro!', 'Erro ao salvar monitor.');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    async saveTask(id) {
+        const form = document.getElementById('task-form');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+        
+        try {
+            this.showLoading(true);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            this.closeModal();
+            this.showNotification('success', 'Sucesso!', `Tarefa ${id ? 'atualizada' : 'criada'} com sucesso.`);
+            
+            if (this.currentRoute === 'kanban') {
+                await this.loadRouteContent('kanban');
+            }
+        } catch (error) {
+            this.showNotification('error', 'Erro!', 'Erro ao salvar tarefa.');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    // Action functions
+    async editStudent(id) {
+        // Simulate fetching student data
+        const student = this.mockData.generateStudents(1)[0];
+        student.id = id;
+        this.showStudentModal(student);
+    }
+    
+    async deleteStudent(id) {
+        if (confirm('Tem certeza que deseja excluir este aluno?')) {
+            try {
+                this.showLoading(true);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                this.showNotification('success', 'Sucesso!', 'Aluno excluído com sucesso.');
+                
+                if (this.currentRoute === 'alunos') {
+                    await this.loadRouteContent('alunos');
+                }
+            } catch (error) {
+                this.showNotification('error', 'Erro!', 'Erro ao excluir aluno.');
+            } finally {
+                this.showLoading(false);
+            }
+        }
+    }
+    
+    async editRoute(id) {
+        const route = this.mockData.generateRoutes(1)[0];
+        route.id = id;
+        this.showRouteModal(route);
+    }
+    
+    async deleteRoute(id) {
+        if (confirm('Tem certeza que deseja excluir esta rota?')) {
+            try {
+                this.showLoading(true);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                this.showNotification('success', 'Sucesso!', 'Rota excluída com sucesso.');
+                
+                if (this.currentRoute === 'rotas') {
+                    await this.loadRouteContent('rotas');
+                }
+            } catch (error) {
+                this.showNotification('error', 'Erro!', 'Erro ao excluir rota.');
+            } finally {
+                this.showLoading(false);
+            }
+        }
+    }
+    
+    async viewRoute(id) {
+        this.showNotification('info', 'Google Maps', 'Integração com Google Maps será implementada em breve.');
+    }
+    
+    async editBus(id) {
+        const bus = this.mockData.generateBuses(1)[0];
+        bus.id = id;
+        this.showBusModal(bus);
+    }
+    
+    async deleteBus(id) {
+        if (confirm('Tem certeza que deseja excluir este ônibus?')) {
+            try {
+                this.showLoading(true);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                this.showNotification('success', 'Sucesso!', 'Ônibus excluído com sucesso.');
+                
+                if (this.currentRoute === 'onibus') {
+                    await this.loadRouteContent('onibus');
+                }
+            } catch (error) {
+                this.showNotification('error', 'Erro!', 'Erro ao excluir ônibus.');
+            } finally {
+                this.showLoading(false);
+            }
+        }
+    }
+    
+    async viewBusHistory(id) {
+        this.showNotification('info', 'Histórico', 'Visualização de histórico será implementada em breve.');
+    }
+    
+    async editMonitor(id) {
+        const monitor = this.mockData.generateMonitors(1)[0];
+        monitor.id = id;
+        this.showMonitorModal(monitor);
+    }
+    
+    async deleteMonitor(id) {
+        if (confirm('Tem certeza que deseja excluir este monitor?')) {
+            try {
+                this.showLoading(true);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                this.showNotification('success', 'Sucesso!', 'Monitor excluído com sucesso.');
+                
+                if (this.currentRoute === 'monitores') {
+                    await this.loadRouteContent('monitores');
+                }
+            } catch (error) {
+                this.showNotification('error', 'Erro!', 'Erro ao excluir monitor.');
+            } finally {
+                this.showLoading(false);
+            }
+        }
+    }
+    
+    async viewMonitorPerformance(id) {
+        this.showNotification('info', 'Performance', 'Análise de performance será implementada em breve.');
+    }
+    
+    async updateTaskStatus(taskId, newStatus) {
+        try {
+            // Simulate API call to update task status
+            console.log(`Updating task ${taskId} to status ${newStatus}`);
+            this.showNotification('success', 'Tarefa atualizada!', 'Status da tarefa foi alterado com sucesso.');
+        } catch (error) {
+            this.showNotification('error', 'Erro!', 'Erro ao atualizar status da tarefa.');
+        }
+    }
+    
+    async generateReport(type) {
+        try {
+            this.showLoading(true);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            this.showNotification('success', 'Relatório gerado!', `Relatório de ${type} foi gerado com sucesso.`);
+        } catch (error) {
+            this.showNotification('error', 'Erro!', 'Erro ao gerar relatório.');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    async generateAIReport() {
+        try {
+            this.showLoading(true);
+            
+            // Simulate Gemini AI report generation
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            const reportContent = `
+                <div class="mb-4">
+                    <h4 class="font-semibold mb-2">🤖 Relatório Gerado pela IA (Gemini)</h4>
+                    <div class="bg-surface-alt p-4 rounded">
+                        <p class="mb-2"><strong>Análise Geral:</strong></p>
+                        <p class="text-sm mb-3">Com base nos dados do sistema SIG-TE, identifiquei os seguintes pontos:</p>
+                        
+                        <p class="mb-2"><strong>📊 Métricas Principais:</strong></p>
+                        <ul class="text-sm mb-3 ml-4">
+                            <li>• Taxa de ocupação média: 87% da capacidade total</li>
+                            <li>• Eficiência das rotas: 92% no prazo</li>
+                            <li>• Satisfação dos usuários: 4.2/5.0</li>
+                        </ul>
+                        
+                        <p class="mb-2"><strong>⚠️ Recomendações:</strong></p>
+                        <ul class="text-sm mb-3 ml-4">
+                            <li>• Otimizar rota Centro-Escola B (redução de 15min possível)</li>
+                            <li>• Manutenção preventiva para ônibus BRA-1234</li>
+                            <li>• Considerar rota adicional no período da tarde</li>
+                        </ul>
+                        
+                        <p class="text-xs text-secondary">Relatório gerado em ${new Date().toLocaleString('pt-BR')}</p>
+                    </div>
+                </div>
+            `;
+            
+            const quickReport = document.getElementById('quick-report');
+            if (quickReport) {
+                quickReport.innerHTML = reportContent;
+            }
+            
+            this.showNotification('success', 'IA Relatório Concluído!', 'Relatório com análise da IA foi gerado com sucesso.');
+        } catch (error) {
+            this.showNotification('error', 'Erro!', 'Erro ao gerar relatório com IA.');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    async generateSlides(type = 'general') {
+        try {
+            this.showLoading(true);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            this.showNotification('success', 'Slides gerados!', `Apresentação ${type} foi gerada com sucesso pela IA.`);
+        } catch (error) {
+            this.showNotification('error', 'Erro!', 'Erro ao gerar apresentação.');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    // Utility functions
+    showLoading(show) {
+        const overlay = document.getElementById('loading-overlay');
+        if (show) {
+            overlay?.classList.remove('hidden');
+        } else {
+            overlay?.classList.add('hidden');
+        }
+    }
+    
+    showNotification(type, title, message) {
+        const notification = document.getElementById('notification');
+        const notificationMessage = document.getElementById('notification-message');
+        
+        // Clear existing classes
+        notification.className = 'notification';
+        notification.classList.add(type);
+        
+        notificationMessage.innerHTML = `
+            <div class="notification-title">${title}</div>
+            <div class="notification-text">${message}</div>
+        `;
+        
+        notification.classList.remove('hidden');
+        
+        // Auto hide after 5 seconds
+        setTimeout(() => {
+            this.hideNotification();
+        }, 5000);
+    }
+    
+    hideNotification() {
+        const notification = document.getElementById('notification');
+        notification?.classList.add('hidden');
+    }
+    
+    async logout() {
+        if (confirm('Tem certeza que deseja sair?')) {
+            this.showLoading(true);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Clear user data
+            this.user = null;
+            localStorage.removeItem('sigte-user');
+            
+            // Redirect or reload
+            window.location.reload();
+        }
+    }
+}
+
+// Mock Data Generator Class
+class MockDataGenerator {
+    constructor() {
+        this.firstNames = ['João', 'Maria', 'Pedro', 'Ana', 'Carlos', 'Juliana', 'Rafael', 'Fernanda', 'Lucas', 'Camila', 'Diego', 'Larissa', 'Bruno', 'Amanda', 'Gustavo', 'Priscila', 'Thiago', 'Natália', 'Felipe', 'Isabela'];
+        this.lastNames = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Ferreira', 'Alves', 'Pereira', 'Lima', 'Gomes', 'Costa', 'Ribeiro', 'Martins', 'Carvalho', 'Almeida', 'Lopes', 'Soares', 'Fernandes', 'Vieira', 'Barbosa'];
+        this.schools = ['Escola Municipal João da Silva', 'Escola Municipal Maria Santos', 'EMEF Prof. Carlos Oliveira', 'Escola Estadual Dom Pedro'];
+        this.shifts = ['Manhã', 'Tarde'];
+        this.busModels = ['Mercedes-Benz OF-1722', 'Volkswagen 17.230', 'Iveco Daily', 'Mercedes-Benz Sprinter', 'Volkswagen Crafter'];
+        this.routes = ['Rota Centro-Norte', 'Rota Sul-Leste', 'Rota Oeste-Centro', 'Rota Norte-Sul', 'Rota Leste-Oeste'];
+    }
+    
+    generateStudents(count) {
+        const students = [];
+        for (let i = 1; i <= count; i++) {
+            const firstName = this.firstNames[Math.floor(Math.random() * this.firstNames.length)];
+            const lastName = this.lastNames[Math.floor(Math.random() * this.lastNames.length)];
+            
+            students.push({
+                id: i,
+                nome: `${firstName} ${lastName}`,
+                cpf: this.generateCPF(),
+                dataNascimento: this.generateBirthDate(),
+                escola: this.schools[Math.floor(Math.random() * this.schools.length)],
+                turno: this.shifts[Math.floor(Math.random() * this.shifts.length)],
+                endereco: `Rua ${lastName}, ${Math.floor(Math.random() * 999) + 1}`,
+                pontoDeParada: `Ponto ${Math.floor(Math.random() * 20) + 1}`,
+                rota: this.routes[Math.floor(Math.random() * this.routes.length)],
+                onibus: `BRA-${Math.floor(Math.random() * 9000) + 1000}`,
+                monitor: `${this.firstNames[Math.floor(Math.random() * this.firstNames.length)]} ${this.lastNames[Math.floor(Math.random() * this.lastNames.length)]}`,
+                telefone: this.generatePhone(),
+                email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@email.com`,
+                ativo: Math.random() > 0.1
+            });
+        }
+        return students;
+    }
+    
+    generateRoutes(count) {
+        const routes = [];
+        for (let i = 1; i <= count; i++) {
+            routes.push({
+                id: i,
+                nome: this.routes[Math.floor(Math.random() * this.routes.length)] + ` ${i}`,
+                descricao: `Rota de transporte escolar atendendo região ${i}`,
+                onibus: `BRA-${Math.floor(Math.random() * 9000) + 1000}`,
+                monitor: `${this.firstNames[Math.floor(Math.random() * this.firstNames.length)]} ${this.lastNames[Math.floor(Math.random() * this.lastNames.length)]}`,
+                horarioPartida: `${6 + Math.floor(Math.random() * 3)}:${String(Math.floor(Math.random() * 6) * 10).padStart(2, '0')}`,
+                horarioChegada: `${7 + Math.floor(Math.random() * 2)}:${String(Math.floor(Math.random() * 6) * 10).padStart(2, '0')}`,
+                ativo: Math.random() > 0.15
+            });
+        }
+        return routes;
+    }
+    
+    generateBuses(count) {
+        const buses = [];
+        for (let i = 1; i <= count; i++) {
+            buses.push({
+                id: i,
+                placa: `BRA-${Math.floor(Math.random() * 9000) + 1000}`,
+                modelo: this.busModels[Math.floor(Math.random() * this.busModels.length)],
+                ano: 2015 + Math.floor(Math.random() * 9),
+                capacidade: [35, 42, 50, 56][Math.floor(Math.random() * 4)],
+                ativo: Math.random() > 0.1,
+                rotaAtual: Math.random() > 0.3 ? this.routes[Math.floor(Math.random() * this.routes.length)] : null
+            });
+        }
+        return buses;
+    }
+    
+    generateMonitors(count) {
+        const monitors = [];
+        for (let i = 1; i <= count; i++) {
+            const firstName = this.firstNames[Math.floor(Math.random() * this.firstNames.length)];
+            const lastName = this.lastNames[Math.floor(Math.random() * this.lastNames.length)];
+            
+            monitors.push({
+                id: i,
+                nome: `${firstName} ${lastName}`,
+                email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@escola.com.br`,
+                telefone: this.generatePhone(),
+                ativo: Math.random() > 0.1,
+                rotaAtual: Math.random() > 0.2 ? this.routes[Math.floor(Math.random() * this.routes.length)] : null
+            });
+        }
+        return monitors;
+    }
+    
+    generateKanbanTasks() {
+        const taskTypes = [
+            'Manutenção preventiva ônibus',
+            'Atualização cadastro aluno',
+            'Revisão rota escolar',
+            'Treinamento monitor',
+            'Inspeção veicular',
+            'Cadastro novo aluno',
+            'Otimização de rota',
+            'Relatório mensal',
+            'Renovação documentação',
+            'Verificação pontos de parada'
+        ];
+        
+        const priorities = ['low', 'medium', 'high'];
+        const assignees = ['João Silva', 'Maria Santos', 'Pedro Oliveira', 'Ana Costa'];
+        
+        const generateTask = (id, status) => ({
+            id,
+            title: taskTypes[Math.floor(Math.random() * taskTypes.length)],
+            description: 'Descrição detalhada da tarefa a ser executada.',
+            priority: priorities[Math.floor(Math.random() * priorities.length)],
+            assignee: assignees[Math.floor(Math.random() * assignees.length)],
+            status
+        });
+        
+        return {
+            todo: Array.from({length: 3}, (_, i) => generateTask(i + 1, 'todo')),
+            inProgress: Array.from({length: 2}, (_, i) => generateTask(i + 4, 'inProgress')),
+            done: Array.from({length: 4}, (_, i) => generateTask(i + 6, 'done'))
+        };
+    }
+    
+    generateCPF() {
+        const cpf = Array.from({length: 11}, () => Math.floor(Math.random() * 10)).join('');
+        return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    }
+    
+    generateBirthDate() {
+        const start = new Date(2005, 0, 1);
+        const end = new Date(2015, 11, 31);
+        const date = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+        return date.toISOString().split('T')[0];
+    }
+    
+    generatePhone() {
+        const ddd = [11, 21, 31, 41, 51, 61, 71, 81, 85, 91][Math.floor(Math.random() * 10)];
+        const number = Math.floor(Math.random() * 900000000) + 100000000;
+        return `(${ddd}) 9${String(number).substring(1)}`;
+    }
+}
+
+// Initialize the application
+let app;
+document.addEventListener('DOMContentLoaded', () => {
+    app = new SIGTEApp();
+});
+</script>
