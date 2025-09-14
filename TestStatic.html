@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIG-TE - Sistema Integrado de Gestão de Transporte Escolar</title>
+    <style>
+:root {
+    /* Light Theme */
+    --primary-color: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #3b82f6;
+    --secondary-color: #64748b;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --info-color: #0ea5e9;
+    
+    /* Light Theme Colors */
+    --background-color: #f8fafc;
+    --surface-color: #ffffff;
+    --surface-alt: #f1f5f9;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --border-color: #e2e8f0;
+    --border-light: #f1f5f9;
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    
+    /* Layout */
+    --sidebar-width: 280px;
+    --sidebar-collapsed-width: 60px;
+    --header-height: 70px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --border-radius: 0.5rem;
+    --border-radius-sm: 0.375rem;
+    --border-radius-lg: 0.75rem;
+}
+
+[data-theme="dark"] {
+    /* Dark Theme Colors */
+    --background-color: #0f172a;
+    --surface-color: #1e293b;
+    --surface-alt: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+    --border-light: #475569;
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-primary);
+    line-height: 1.6;
+    transition: var(--transition);
+}
+
+/* Header */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    background: var(--surface-color);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+    z-index: 1000;
+    transition: var(--transition);
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 100%;
+    padding: 0 2rem;
+}
+
+.logo h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
+}
+
+.logo span {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.theme-toggle {
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    border-radius: var(--border-radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 1.25rem;
+}
+
+.theme-toggle:hover {
+    background-color: var(--surface-alt);
+    color: var(--text-primary);
+}
+
+/* Sidebar */
+.sidebar {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    width: var(--sidebar-width);
+    height: calc(100vh - var(--header-height));
+    background: var(--surface-color);
+    border-right: 1px solid var(--border-color);
+    transition: var(--transition);
+    z-index: 999;
+    overflow-y: auto;
+}
+
+.sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-toggle {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition);
+    color: var(--text-secondary);
+}
+
+.sidebar-toggle:hover {
+    background-color: var(--surface-alt);
+    color: var(--text-primary);
+}
+
+.sidebar-title {
+    margin-left: 1rem;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.sidebar.collapsed .sidebar-title {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.nav-menu {
+    list-style: none;
+    padding: 1rem 0;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: var(--transition);
+    border-left: 3px solid transparent;
+    margin-bottom: 0.25rem;
+}
+
+.nav-link:hover {
+    background-color: var(--surface-alt);
+    color: var(--text-primary);
+}
+
+.nav-link.active {
+    background-color: rgba(37, 99, 235, 0.1);
+    color: var(--primary-color);
+    border-left-color: var(--primary-color);
+}
+
+.nav-icon {
+    font-size: 1.25rem;
+    margin-right: 0.75rem;
+    min-width: 1.5rem;
+    text-align: center;
+}
+
+.nav-text {
+    transition: var(--transition);
+}
+
+.sidebar.collapsed .nav-text {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Main Content */
+.main-content {
+    margin-left: var(--sidebar-width);
+    margin-top: var(--header-height);
+    min-height: calc(100vh - var(--header-height));
+    transition: var(--transition);
+}
+
+.sidebar.collapsed + .main-content {
+    margin-left: var(--sidebar-collapsed-width);
+}
+
+.content-wrapper {
+    padding: 2rem;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+/* Stats Cards */
+.stats-card {
+    background: var(--surface-color);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+.stats-card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.stats-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.stats-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.stats-change {
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+.stats-change.positive {
+    color: var(--success-color);
+}
+
+.stats-change.negative {
+    color: var(--danger-color);
+}
+
+/* Grid */
+.grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Cards */
+.card {
+    background: var(--surface-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: var(--transition);
+    border: 1px solid var(--border-color);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--surface-alt);
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.card-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.card-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    background-color: var(--surface-alt);
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--transition);
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--primary-dark);
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: #475569;
+}
+
+/* Charts */
+.chart-container {
+    width: 100%;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-alt);
+    border-radius: var(--border-radius);
+    color: var(--text-secondary);
+}
+
+/* Utility Classes */
+.hidden { display: none !important; }
+.text-center { text-align: center; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.p-3 { padding: 0.75rem; }
+.p-4 { padding: 1rem; }
+
+/* Flexbox */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+
+/* Colors */
+.text-secondary { color: var(--text-secondary); }
+.bg-warning { background-color: rgba(245, 158, 11, 0.1); }
+.bg-info { background-color: rgba(14, 165, 233, 0.1); }
+
+/* Font */
+.font-semibold { font-weight: 600; }
+.text-sm { font-size: 0.875rem; }
+.text-xs { font-size: 0.75rem; }
+
+/* Spacing */
+.space-y-3 > * + * { margin-top: 0.75rem; }
+
+/* Border */
+.rounded { border-radius: var(--border-radius-sm); }
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .grid-cols-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .content-wrapper {
+        padding: 1rem;
+    }
+    
+    .grid-cols-2,
+    .grid-cols-3,
+    .grid-cols-4 {
+        grid-template-columns: 1fr;
+    }
+    
+    .header-content {
+        padding: 0 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-title {
+        font-size: 1.5rem;
+    }
+    
+    .stats-value {
+        font-size: 1.5rem;
+    }
+    
+    .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+}
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>SIG-TE</h1>
+                    <span>Sistema Integrado de Gestão de Transporte Escolar</span>
+                </div>
+                <div class="user-info">
+                    <button id="theme-toggle" class="theme-toggle" title="Alternar tema">🌙</button>
+                    <span id="user-email">admin@escola.com.br</span>
+                    <button id="logout-btn" class="btn btn-secondary">Sair</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button id="sidebar-toggle" class="sidebar-toggle">☰</button>
+                <span class="sidebar-title">Menu</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#/dashboard" class="nav-link active" data-route="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a></li>
+                <li><a href="#/alunos" class="nav-link" data-route="alunos">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Alunos</span>
+                </a></li>
+                <li><a href="#/rotas" class="nav-link" data-route="rotas">
+                    <span class="nav-icon">🗺️</span>
+                    <span class="nav-text">Rotas</span>
+                </a></li>
+                <li><a href="#/onibus" class="nav-link" data-route="onibus">
+                    <span class="nav-icon">🚌</span>
+                    <span class="nav-text">Ônibus</span>
+                </a></li>
+                <li><a href="#/monitores" class="nav-link" data-route="monitores">
+                    <span class="nav-icon">👨‍🏫</span>
+                    <span class="nav-text">Monitores</span>
+                </a></li>
+                <li><a href="#/kanban" class="nav-link" data-route="kanban">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Kanban</span>
+                </a></li>
+                <li><a href="#/relatorios" class="nav-link" data-route="relatorios">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Relatórios</span>
+                </a></li>
+                <li><a href="#/slides" class="nav-link" data-route="slides">
+                    <span class="nav-icon">🎯</span>
+                    <span class="nav-text">Slides IA</span>
+                </a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="main-content">
+            <div class="content-wrapper">
+                <div id="page-content">
+                    <!-- Dashboard Content -->
+                    <div class="page-header">
+                        <h1 class="page-title">Dashboard</h1>
+                        <p class="page-subtitle">Visão geral do sistema de transporte escolar</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-4 mb-6">
+                        <div class="stats-card">
+                            <div class="stats-value">234</div>
+                            <div class="stats-label">Total de Alunos</div>
+                            <div class="stats-change positive">↗ 229 ativos</div>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-value">12</div>
+                            <div class="stats-label">Rotas Cadastradas</div>
+                            <div class="stats-change positive">↗ 11 ativas</div>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-value">8</div>
+                            <div class="stats-label">Frota de Ônibus</div>
+                            <div class="stats-change positive">↗ 7 operacionais</div>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-value">15</div>
+                            <div class="stats-label">Monitores</div>
+                            <div class="stats-change positive">↗ 14 ativos</div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 mb-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Frequência Semanal</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    📊 Gráfico de Frequência
+                                    <br><small>Integração com bibliotecas de gráfico em desenvolvimento</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Rotas Mais Utilizadas</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    🗺️ Gráfico de Rotas
+                                    <br><small>Integração com Google Maps em desenvolvimento</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Alertas Recentes</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="space-y-3">
+                                    <div class="flex items-center gap-3 p-3 bg-warning rounded">
+                                        <span>⚠️</span>
+                                        <div>
+                                            <div class="font-semibold">Manutenção Preventiva</div>
+                                            <div class="text-sm text-secondary">Ônibus BRA-1234 - Vencimento em 5 dias</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-3 p-3 bg-info rounded">
+                                        <span>ℹ️</span>
+                                        <div>
+                                            <div class="font-semibold">Nova Rota Criada</div>
+                                            <div class="text-sm text-secondary">Rota Centro-Escola Municipal</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Ações Rápidas</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <button class="btn btn-primary" onclick="navigateTo('alunos')">
+                                        👥 Gerenciar Alunos
+                                    </button>
+                                    <button class="btn btn-primary" onclick="navigateTo('rotas')">
+                                        🗺️ Ver Rotas
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="navigateTo('relatorios')">
+                                        📈 Relatórios
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="navigateTo('kanban')">
+                                        📋 Kanban
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Initialize theme
+        let currentTheme = localStorage.getItem('sigte-theme') || 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        document.getElementById('theme-toggle').innerHTML = currentTheme === 'dark' ? '☀️' : '🌙';
+
+        // Theme toggle functionality
+        document.getElementById('theme-toggle').addEventListener('click', function() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            localStorage.setItem('sigte-theme', currentTheme);
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            this.innerHTML = currentTheme === 'dark' ? '☀️' : '🌙';
+            
+            // Show simple notification
+            alert(`Tema ${currentTheme === 'dark' ? 'escuro' : 'claro'} ativado!`);
+        });
+
+        // Sidebar toggle functionality
+        let sidebarCollapsed = localStorage.getItem('sigte-sidebar-collapsed') === 'true';
+        const sidebar = document.getElementById('sidebar');
+        
+        if (sidebarCollapsed) {
+            sidebar.classList.add('collapsed');
+        }
+
+        document.getElementById('sidebar-toggle').addEventListener('click', function() {
+            sidebarCollapsed = !sidebarCollapsed;
+            if (sidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+            }
+            localStorage.setItem('sigte-sidebar-collapsed', sidebarCollapsed.toString());
+        });
+
+        // Navigation functionality
+        function navigateTo(route) {
+            // Update active nav link
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            const activeLink = document.querySelector(`[data-route="${route}"]`);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+
+            // Simple content update for demo
+            const pageContent = document.getElementById('page-content');
+            let content = '';
+
+            switch (route) {
+                case 'dashboard':
+                    content = pageContent.innerHTML; // Keep current dashboard
+                    break;
+                case 'alunos':
+                    content = `
+                        <div class="page-header">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h1 class="page-title">Alunos</h1>
+                                    <p class="page-subtitle">Gerenciamento de estudantes</p>
+                                </div>
+                                <button class="btn btn-primary">➕ Novo Aluno</button>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <p class="text-center">Lista de alunos será carregada aqui...</p>
+                                <p class="text-center text-secondary text-sm">Funcionalidade completa disponível no ambiente Google Apps Script</p>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'rotas':
+                    content = `
+                        <div class="page-header">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h1 class="page-title">Rotas</h1>
+                                    <p class="page-subtitle">Gerenciamento de rotas de transporte</p>
+                                </div>
+                                <button class="btn btn-primary">➕ Nova Rota</button>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <p class="text-center">Rotas e otimização será carregada aqui...</p>
+                                <p class="text-center text-secondary text-sm">Integração com Google Maps disponível no ambiente Google Apps Script</p>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'kanban':
+                    content = `
+                        <div class="page-header">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h1 class="page-title">Kanban</h1>
+                                    <p class="page-subtitle">Gerenciamento de tarefas e atividades</p>
+                                </div>
+                                <button class="btn btn-primary">➕ Nova Tarefa</button>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <p class="text-center">Board Kanban será carregado aqui...</p>
+                                <p class="text-center text-secondary text-sm">Funcionalidade completa com drag-and-drop disponível no ambiente Google Apps Script</p>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'relatorios':
+                    content = `
+                        <div class="page-header">
+                            <h1 class="page-title">Relatórios</h1>
+                            <p class="page-subtitle">Análises e relatórios do sistema</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <p class="text-center">Relatórios com IA (Gemini) serão carregados aqui...</p>
+                                <p class="text-center text-secondary text-sm">Integração com Gemini API disponível no ambiente Google Apps Script</p>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'slides':
+                    content = `
+                        <div class="page-header">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h1 class="page-title">Slides com IA</h1>
+                                    <p class="page-subtitle">Apresentações geradas automaticamente</p>
+                                </div>
+                                <button class="btn btn-primary">🎯 Gerar Apresentação</button>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <p class="text-center">Geração de slides com IA será carregada aqui...</p>
+                                <p class="text-center text-secondary text-sm">Funcionalidade completa com Gemini API disponível no ambiente Google Apps Script</p>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                default:
+                    content = `
+                        <div class="page-header">
+                            <h1 class="page-title">${route.charAt(0).toUpperCase() + route.slice(1)}</h1>
+                            <p class="page-subtitle">Módulo em desenvolvimento</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <p class="text-center">Conteúdo será carregado aqui...</p>
+                            </div>
+                        </div>
+                    `;
+            }
+
+            pageContent.innerHTML = content;
+        }
+
+        // Navigation click handlers
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const route = this.getAttribute('data-route');
+                if (route) {
+                    navigateTo(route);
+                }
+            });
+        });
+
+        // Logout functionality
+        document.getElementById('logout-btn').addEventListener('click', function() {
+            if (confirm('Tem certeza que deseja sair?')) {
+                alert('Logout realizado com sucesso!');
+                // In a real app, this would redirect to login
+            }
+        });
+
+        // Responsive menu toggle for mobile
+        if (window.innerWidth <= 768) {
+            document.getElementById('sidebar-toggle').addEventListener('click', function() {
+                sidebar.classList.toggle('open');
+            });
+
+            // Close sidebar when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!sidebar.contains(e.target) && !e.target.closest('#sidebar-toggle')) {
+                    sidebar.classList.remove('open');
+                }
+            });
+        }
+
+        console.log('✅ SIG-TE System Initialized Successfully!');
+        console.log('🎨 Theme System: Light/Dark mode available');
+        console.log('📱 Responsive Design: Mobile-friendly');
+        console.log('🚀 Ready for Google Apps Script integration');
+    </script>
+</body>
+</html>
