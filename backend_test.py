@@ -305,13 +305,24 @@ class SIGTEBackendTester:
                 print("❌ Missing timeZone configuration")
                 return False
             
-            if 'dependencies' not in config:
-                print("❌ Missing dependencies configuration")
-                return False
-            
             if 'webapp' not in config:
                 print("❌ Missing webapp configuration")
                 return False
+            
+            if 'oauthScopes' not in config:
+                print("❌ Missing oauthScopes configuration")
+                return False
+            
+            # Check for required OAuth scopes
+            required_scopes = [
+                'https://www.googleapis.com/auth/spreadsheets',
+                'https://www.googleapis.com/auth/script.external_request'
+            ]
+            
+            for scope in required_scopes:
+                if scope not in config['oauthScopes']:
+                    print(f"❌ Missing required OAuth scope: {scope}")
+                    return False
             
             print("✅ appsscript.json configuration is complete")
             return True
